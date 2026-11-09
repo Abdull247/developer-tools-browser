@@ -22,21 +22,27 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Grant execute permission for Gradlew
         run: chmod +x gradlew
 
       - name: Decode release keystore
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "No release keystore secret; release will use debug signing"
+            exit 0
+          fi
           echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > keystore/release.keystore
           {
             echo "storeFile=../keystore/release.keystore"
@@ -56,6 +62,7 @@ jobs:
           else
             cp app/build/outputs/apk/release/app-release-unsigned.apk dist/devbrowser-release.apk
           fi
+          ls -lh dist/devbrowser-release.apk
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
